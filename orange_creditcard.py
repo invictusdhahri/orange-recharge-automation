@@ -212,15 +212,27 @@ class OrangeCreditCardRecharge:
     
     def get_recaptcha_sitekey(self):
         """Extract reCAPTCHA site key from page"""
+        # Hardcoded site key for Orange Tunisia (tested and confirmed)
+        ORANGE_SITEKEY = "6Leg2IkcAAAAAMh5olydKqPSz0lI7ysYRrIo_9ea"
+        
+        # Try to extract dynamically as backup
         try:
             iframe = self.driver.find_element(By.CSS_SELECTOR, 'iframe[src*="recaptcha"]')
             src = iframe.get_attribute('src')
             match = re.search(r'k=([^&]+)', src)
             if match:
-                return match.group(1)
+                extracted_key = match.group(1)
+                # Verify it matches our known key
+                if extracted_key == ORANGE_SITEKEY:
+                    return extracted_key
+                else:
+                    print(f"⚠️  Site key changed! Old: {ORANGE_SITEKEY}, New: {extracted_key}")
+                    return extracted_key
         except:
             pass
-        return None
+        
+        # Fallback to known key
+        return ORANGE_SITEKEY
     
     def recharge(self, phone_number, amount, notification_number=None, captcha_method='auto'):
         """
