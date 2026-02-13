@@ -300,19 +300,15 @@ class OrangeCreditCardRecharge:
                 phone_inputs[1].clear()
                 phone_inputs[1].send_keys(phone_number)
             
-            # Select amount
+            # Select amount (use JavaScript to avoid click interception)
             print(f"💰 Selecting amount: {amount} DT")
             if amount in [10, 20, 25, 30, 40, 50, 100, 200]:
                 # Click predefined amount button
-                amount_buttons = {
-                    10: 0, 20: 1, 25: 2, 30: 3,
-                    40: 4, 50: 5, 100: 6, 200: 7
-                }
-                buttons = self.driver.find_elements(By.CSS_SELECTOR, 'button[class*="amount"], button')
+                buttons = self.driver.find_elements(By.TAG_NAME, 'button')
                 # Find the button with the amount text
                 for btn in buttons:
-                    if str(amount) in btn.text:
-                        btn.click()
+                    if str(amount) == btn.text.strip():
+                        self.driver.execute_script("arguments[0].click();", btn)
                         break
             else:
                 # Enter custom amount
@@ -328,10 +324,10 @@ class OrangeCreditCardRecharge:
                     notif_input[2].clear()
                     notif_input[2].send_keys(notification_number)
             
-            # Click Valider
+            # Click Valider (use JavaScript to avoid click interception)
             print("✅ Clicking Valider...")
             valider_button = self.driver.find_element(By.XPATH, '//button[contains(text(), "Valider")]')
-            valider_button.click()
+            self.driver.execute_script("arguments[0].click();", valider_button)
             time.sleep(2)
             
             # Solve reCAPTCHA
@@ -371,12 +367,13 @@ class OrangeCreditCardRecharge:
                 EC.presence_of_element_located((By.XPATH, '//button[contains(text(), "Payer")]'))
             )
             
-            # Click Pay
+            # Click Pay (use JavaScript to avoid click interception)
             print("💳 Clicking Payer...")
-            pay_button.click()
+            self.driver.execute_script("arguments[0].click();", pay_button)
             
             # Wait for GraphQL response
-            time.sleep(3)
+            print("⏳ Waiting for GraphQL response...")
+            time.sleep(5)
             
             # Try to capture the payment URL from network logs
             # (In production, you'd monitor network requests for the GraphQL response)
