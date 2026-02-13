@@ -251,21 +251,31 @@ class OrangeCreditCardRecharge:
                 )
                 self.driver.execute_script("arguments[0].click();", checkbox)
                 
-                # Wait and check if it auto-solved (no challenge appears)
+                # Poll checkbox state for up to 8 seconds to see if it auto-solves
                 print("   ⏳ Checking if reCAPTCHA auto-solved...")
-                time.sleep(3)  # Give reCAPTCHA time to decide
+                auto_solved = False
                 
-                # Check if checkbox is now checked (auto-solved)
-                is_checked = checkbox.get_attribute('aria-checked')
+                for check_attempt in range(8):  # 8 attempts x 1 second = 8 seconds
+                    time.sleep(1)
+                    
+                    # Re-find the checkbox element and check state
+                    checkbox_elem = self.driver.find_element(By.ID, 'recaptcha-anchor')
+                    is_checked = checkbox_elem.get_attribute('aria-checked')
+                    
+                    if is_checked == 'true':
+                        print(f"   🎉 reCAPTCHA auto-solved after {check_attempt + 1}s! No 2Captcha needed!")
+                        auto_solved = True
+                        break
+                    elif check_attempt > 0 and check_attempt % 3 == 0:
+                        print(f"   ⏱️  Still checking... ({check_attempt + 1}s)")
                 
                 # Switch back to main content
                 self.driver.switch_to.default_content()
                 
-                if is_checked == 'true':
-                    print("   🎉 reCAPTCHA auto-solved! No 2Captcha needed!")
+                if auto_solved:
                     return True
                 else:
-                    print("   ✅ Checkbox clicked, challenge appeared - using 2Captcha...")
+                    print("   ✅ Challenge appeared - using 2Captcha...")
                     
             except Exception as click_error:
                 print(f"   ⚠️  Could not click checkbox: {click_error}")
