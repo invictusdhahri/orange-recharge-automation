@@ -91,6 +91,14 @@ class OrangeCreditCardRecharge:
             print("   pip install SpeechRecognition pydub")
             return False
         
+        # Check if ffmpeg is available
+        import shutil
+        if not shutil.which('ffmpeg') and not shutil.which('ffprobe'):
+            print("⚠️  ffmpeg not installed. Install with:")
+            print("   brew install ffmpeg  (Mac)")
+            print("   Skipping audio method, using 2Captcha instead...")
+            return False
+        
         try:
             print("🎧 Attempting audio CAPTCHA challenge...")
             

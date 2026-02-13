@@ -46,7 +46,7 @@ print()
 result = recharger.recharge(
     phone_number=phone,
     amount=amount,
-    captcha_method='auto'
+    captcha_method='2captcha'  # Use 2Captcha directly (reliable and fast)
 )
 
 # Show result
