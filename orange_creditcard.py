@@ -250,11 +250,23 @@ class OrangeCreditCardRecharge:
                     EC.element_to_be_clickable((By.CLASS_NAME, 'recaptcha-checkbox-border'))
                 )
                 self.driver.execute_script("arguments[0].click();", checkbox)
-                time.sleep(2)  # Wait for challenge to appear (if needed)
+                
+                # Wait and check if it auto-solved (no challenge appears)
+                print("   ⏳ Checking if reCAPTCHA auto-solved...")
+                time.sleep(3)  # Give reCAPTCHA time to decide
+                
+                # Check if checkbox is now checked (auto-solved)
+                is_checked = checkbox.get_attribute('aria-checked')
                 
                 # Switch back to main content
                 self.driver.switch_to.default_content()
-                print("   ✅ Checkbox clicked, reCAPTCHA initialized")
+                
+                if is_checked == 'true':
+                    print("   🎉 reCAPTCHA auto-solved! No 2Captcha needed!")
+                    return True
+                else:
+                    print("   ✅ Checkbox clicked, challenge appeared - using 2Captcha...")
+                    
             except Exception as click_error:
                 print(f"   ⚠️  Could not click checkbox: {click_error}")
                 print("   Continuing with direct token injection...")
