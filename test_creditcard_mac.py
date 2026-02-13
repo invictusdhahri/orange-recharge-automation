@@ -80,8 +80,8 @@ class MacOrangeCreditCardRecharge(OrangeCreditCardRecharge):
 
 
 # Initialize recharger
-print("🚀 Starting recharge with auto CAPTCHA solving...")
-print("   (will try free audio first, fallback to 2Captcha)")
+print("🚀 Starting recharge with 2Captcha...")
+print("   (Takes ~30-60 seconds to solve, cost: $0.001)")
 print()
 
 recharger = MacOrangeCreditCardRecharge(twocaptcha_api_key=api_key)
@@ -89,7 +89,7 @@ recharger = MacOrangeCreditCardRecharge(twocaptcha_api_key=api_key)
 result = recharger.recharge(
     phone_number=phone,
     amount=amount,
-    captcha_method='auto'
+    captcha_method='2captcha'  # Use 2Captcha directly (reliable and has GraphQL interception)
 )
 
 # Show result
