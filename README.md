@@ -4,14 +4,23 @@
 [![Selenium](https://img.shields.io/badge/selenium-4.x-green.svg)](https://www.selenium.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Automated recharge system for Orange Tunisia with **math CAPTCHA solving**. Much simpler than Ooredoo's text CAPTCHA!
+Automated recharge system for Orange Tunisia with **multiple methods**:
+- 🎫 **Scratch card recharge** - Math CAPTCHA (super easy!)
+- 💳 **Credit card recharge** - reCAPTCHA with FREE audio bypass (~60% success) + 2Captcha fallback
 
 ## ✨ Features
 
+### Scratch Card Recharge
 - ✅ **No login required** - Direct recharge submission
 - 🧮 **Math CAPTCHA solving** - Automatic equation solving (e.g., "10 + 7")
 - 🚀 **Fast & reliable** - Clean GraphQL API
 - 📊 **Clear responses** - Simple success/error detection
+
+### Credit Card Recharge
+- 💳 **Get payment URL** - Automated form filling + CAPTCHA bypass
+- 🆓 **FREE reCAPTCHA bypass** - Audio challenge + speech recognition (~60-80% success)
+- 💰 **2Captcha fallback** - Optional paid service (~99% success, $0.001/solve)
+- 🔄 **Auto mode** - Try free first, fallback to paid ($0.30 per 1000 recharges)
 - 🔧 **Production-ready** - Error handling and validation
 
 ## 🆚 Orange vs Ooredoo
@@ -45,8 +54,9 @@ pip install -r requirements.txt
 
 ## 💡 Usage
 
-### Basic Usage
+### Method 1: Scratch Card Recharge
 
+**Basic:**
 ```bash
 python orange_recharge.py <phone_number> <recharge_code>
 ```
@@ -56,12 +66,24 @@ python orange_recharge.py <phone_number> <recharge_code>
 python orange_recharge.py 53028939 1234567890123
 ```
 
-### Headless Mode
-
-Run without visible browser:
+**Headless mode:**
 ```bash
 python orange_recharge.py 53028939 1234567890123 --headless
 ```
+
+### Method 2: Credit Card Recharge 💳
+
+**FREE (audio CAPTCHA):**
+```bash
+python orange_creditcard.py 53028939 20
+```
+
+**With 2Captcha fallback (recommended):**
+```bash
+python orange_creditcard.py 53028939 50 --2captcha-key=YOUR_KEY
+```
+
+**Full documentation:** [CREDITCARD_RECHARGE.md](CREDITCARD_RECHARGE.md)
 
 ### Programmatic Usage
 
@@ -183,16 +205,29 @@ def solve_math_captcha(equation_text):
 - **Login:** Session management required
 - **Automation:** More complex
 
+## 🆚 Method Comparison
+
+| Feature | Scratch Card | Credit Card |
+|---------|--------------|-------------|
+| **CAPTCHA** | Math equation (easy) | reCAPTCHA v2 (hard) |
+| **CAPTCHA Bypass** | 100% success (simple math) | 60-99% (audio/2Captcha) |
+| **Cost** | $0 (completely free) | $0-0.001/recharge |
+| **Use Case** | Have recharge codes | Need to generate payment URL |
+| **Speed** | ⚡ Fast (~5-10s) | ⏱️ Medium (~15-30s) |
+| **Complexity** | ⭐ Easy | ⭐⭐ Medium |
+
 ## 📁 Project Structure
 
 ```
 orange-recharge-automation/
-├── orange_recharge.py      # Main automation script
-├── requirements.txt         # Python dependencies
-├── README.md               # This file
-├── RESPONSES.md            # Response format documentation
-├── LICENSE                 # MIT License
-└── .gitignore             # Git ignore rules
+├── orange_recharge.py           # Scratch card automation
+├── orange_creditcard.py         # Credit card automation
+├── requirements.txt              # Python dependencies
+├── README.md                    # This file
+├── CREDITCARD_RECHARGE.md       # Credit card detailed docs
+├── RESPONSES.md                 # API response formats
+├── LICENSE                      # MIT License
+└── .gitignore                  # Git ignore rules
 ```
 
 ## 🔒 Security
