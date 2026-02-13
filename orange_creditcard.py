@@ -362,6 +362,55 @@ class OrangeCreditCardRecharge:
                     'message': 'Failed to solve CAPTCHA'
                 }
             
+            # Set up network interception BEFORE clicking Payer
+            print("🔍 Setting up GraphQL response interceptor...")
+            self.driver.execute_script("""
+                window.capturedPaymentUrl = null;
+                
+                // Intercept fetch
+                const originalFetch = window.fetch;
+                window.fetch = function(...args) {
+                    return originalFetch(...args).then(response => {
+                        const clonedResponse = response.clone();
+                        
+                        if (args[0].includes('graphql') || args[0].includes('topup')) {
+                            clonedResponse.json().then(data => {
+                                if (data.data && data.data.topupWithCreditCard) {
+                                    window.capturedPaymentUrl = data.data.topupWithCreditCard;
+                                    console.log('✅ Payment URL captured:', window.capturedPaymentUrl);
+                                }
+                            }).catch(() => {});
+                        }
+                        
+                        return response;
+                    });
+                };
+                
+                // Intercept XHR
+                const originalOpen = XMLHttpRequest.prototype.open;
+                const originalSend = XMLHttpRequest.prototype.send;
+                
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    this._url = url;
+                    return originalOpen.apply(this, arguments);
+                };
+                
+                XMLHttpRequest.prototype.send = function() {
+                    this.addEventListener('load', function() {
+                        if ((this._url.includes('graphql') || this._url.includes('topup')) && this.status === 200) {
+                            try {
+                                const data = JSON.parse(this.responseText);
+                                if (data.data && data.data.topupWithCreditCard) {
+                                    window.capturedPaymentUrl = data.data.topupWithCreditCard;
+                                    console.log('✅ Payment URL captured:', window.capturedPaymentUrl);
+                                }
+                            } catch (e) {}
+                        }
+                    });
+                    return originalSend.apply(this, arguments);
+                };
+            """)
+            
             # Wait for Pay button to become enabled
             print("⏳ Waiting for Pay button...")
             time.sleep(3)  # Give page time to process token
@@ -385,28 +434,54 @@ class OrangeCreditCardRecharge:
             print("💳 Clicking Payer...")
             self.driver.execute_script("arguments[0].click();", pay_button)
             
-            # Wait for GraphQL response
+            # Wait for GraphQL response and check intercepted URL
             print("⏳ Waiting for GraphQL response...")
-            time.sleep(5)
+            payment_url = None
             
-            # Try to capture the payment URL from network logs
-            # (In production, you'd monitor network requests for the GraphQL response)
+            # Poll for captured payment URL (from our JavaScript interceptor)
+            for i in range(20):  # 10 seconds total (20 x 0.5s)
+                time.sleep(0.5)
+                captured_url = self.driver.execute_script("return window.capturedPaymentUrl;")
+                
+                if captured_url:
+                    payment_url = captured_url
+                    print(f"✅ Payment URL captured from interceptor!")
+                    break
             
-            # Check if redirected to payment page
-            current_url = self.driver.current_url
-            if 'clictopay' in current_url or 'payment' in current_url:
-                print("✅ Payment URL obtained!")
+            # If interceptor didn't catch it, check if redirected
+            if not payment_url:
+                time.sleep(2)
+                current_url = self.driver.current_url
+                if 'clictopay' in current_url or 'payment' in current_url:
+                    print("✅ Payment URL obtained from redirect!")
+                    payment_url = current_url
+            
+            # If we got the payment URL, return success
+            if payment_url:
                 return {
                     'status': 'success',
-                    'payment_url': current_url,
+                    'payment_url': payment_url,
                     'phone': phone_number,
                     'amount': amount
                 }
             
-            # Try to find GraphQL response in page source or console
-            # This is a simplified version - in production you'd intercept the actual GraphQL call
+            # Fallback: try to find URL in page source
+            page_source = self.driver.page_source
+            if 'clictopay' in page_source:
+                import re
+                match = re.search(r'https://ipay\.clictopay\.com[^"\'<>\s]*', page_source)
+                if match:
+                    payment_url = match.group(0)
+                    print(f"✅ Payment URL found in page source!")
+                    return {
+                        'status': 'success',
+                        'payment_url': payment_url,
+                        'phone': phone_number,
+                        'amount': amount
+                    }
             
             print("⚠️  Payment initiated but URL not captured automatically")
+            current_url = self.driver.current_url
             return {
                 'status': 'partial_success',
                 'message': 'Reached payment step - check browser for payment URL',
