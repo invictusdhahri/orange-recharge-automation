@@ -168,30 +168,46 @@ class OrangeCreditCardRecharge:
             self.driver.switch_to.default_content()
             
             # Verify CAPTCHA was actually solved by checking checkbox state
-            time.sleep(2)
-            try:
-                # Switch to checkbox iframe to verify
-                checkbox_iframe = self.wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
-                )
-                self.driver.switch_to.frame(checkbox_iframe)
+            # Poll for up to 10 seconds to see if checkbox gets checked
+            print("🔍 Verifying checkbox state...")
+            checkbox_checked = False
+            
+            for verify_attempt in range(10):  # 10 attempts x 1 second = 10 seconds max
+                time.sleep(1)
                 
-                # Look for the checkmark (aria-checked="true")
-                checkbox = self.driver.find_element(By.ID, 'recaptcha-anchor')
-                is_checked = checkbox.get_attribute('aria-checked')
-                
-                self.driver.switch_to.default_content()
-                
-                if is_checked == 'true':
-                    print("✅ Audio CAPTCHA solved successfully!")
-                    return True
-                else:
-                    print("❌ Audio CAPTCHA not verified (checkbox not checked)")
-                    return False
+                try:
+                    # Switch to checkbox iframe to verify
+                    checkbox_iframe = self.wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
+                    )
+                    self.driver.switch_to.frame(checkbox_iframe)
                     
-            except Exception as verify_error:
-                print(f"⚠️  Could not verify CAPTCHA state: {verify_error}")
-                self.driver.switch_to.default_content()
+                    # Look for the checkmark (aria-checked="true")
+                    checkbox = self.driver.find_element(By.ID, 'recaptcha-anchor')
+                    is_checked = checkbox.get_attribute('aria-checked')
+                    
+                    self.driver.switch_to.default_content()
+                    
+                    if is_checked == 'true':
+                        print(f"✅ Checkbox verified as checked (after {verify_attempt + 1}s)")
+                        checkbox_checked = True
+                        break
+                    else:
+                        # Still not checked, keep polling
+                        if verify_attempt % 3 == 0 and verify_attempt > 0:
+                            print(f"⏳ Still waiting for checkbox... ({verify_attempt + 1}s)")
+                            
+                except Exception as verify_error:
+                    # If we can't find iframe/checkbox, break out
+                    print(f"⚠️  Verification error: {verify_error}")
+                    self.driver.switch_to.default_content()
+                    break
+            
+            if checkbox_checked:
+                print("✅ Audio CAPTCHA solved successfully!")
+                return True
+            else:
+                print("❌ Audio CAPTCHA not verified (checkbox not checked after 10s)")
                 return False
             
         except Exception as e:
@@ -325,32 +341,47 @@ class OrangeCreditCardRecharge:
                     """)
                     
                     # Verify CAPTCHA was actually solved by checking checkbox state
-                    time.sleep(2)
-                    try:
-                        # Switch to checkbox iframe to verify
-                        checkbox_iframe = self.wait.until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
-                        )
-                        self.driver.switch_to.frame(checkbox_iframe)
+                    # Poll for up to 10 seconds to see if checkbox gets checked
+                    print("   🔍 Verifying checkbox state...")
+                    checkbox_checked = False
+                    
+                    for verify_attempt in range(10):  # 10 attempts x 1 second = 10 seconds max
+                        time.sleep(1)
                         
-                        # Look for the checkmark (aria-checked="true")
-                        checkbox = self.driver.find_element(By.ID, 'recaptcha-anchor')
-                        is_checked = checkbox.get_attribute('aria-checked')
-                        
-                        self.driver.switch_to.default_content()
-                        
-                        if is_checked == 'true':
-                            print("✅ 2Captcha token accepted!")
-                            return True
-                        else:
-                            print("❌ 2Captcha token not accepted (checkbox not checked)")
-                            return False
+                        try:
+                            # Switch to checkbox iframe to verify
+                            checkbox_iframe = self.wait.until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
+                            )
+                            self.driver.switch_to.frame(checkbox_iframe)
                             
-                    except Exception as verify_error:
-                        print(f"⚠️  Could not verify CAPTCHA state: {verify_error}")
-                        self.driver.switch_to.default_content()
-                        # Return True anyway since we got a token - it's a backend validation issue
+                            # Look for the checkmark (aria-checked="true")
+                            checkbox = self.driver.find_element(By.ID, 'recaptcha-anchor')
+                            is_checked = checkbox.get_attribute('aria-checked')
+                            
+                            self.driver.switch_to.default_content()
+                            
+                            if is_checked == 'true':
+                                print(f"   ✅ Checkbox verified as checked (after {verify_attempt + 1}s)")
+                                checkbox_checked = True
+                                break
+                            else:
+                                # Still not checked, keep polling
+                                if verify_attempt % 3 == 0 and verify_attempt > 0:
+                                    print(f"   ⏳ Still waiting for checkbox... ({verify_attempt + 1}s)")
+                                
+                        except Exception as verify_error:
+                            # If we can't find iframe/checkbox, break out
+                            print(f"   ⚠️  Verification error: {verify_error}")
+                            self.driver.switch_to.default_content()
+                            break
+                    
+                    if checkbox_checked:
+                        print("✅ 2Captcha token accepted!")
                         return True
+                    else:
+                        print("❌ 2Captcha token not accepted (checkbox not checked after 10s)")
+                        return False
                 
                 # Check for errors (status == 0)
                 elif result['status'] == 0:
