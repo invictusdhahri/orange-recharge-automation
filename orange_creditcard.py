@@ -45,10 +45,13 @@ class OrangeCreditCardRecharge:
         
     def _setup_driver(self):
         """Setup Chrome driver with options"""
+        import sys
         chrome_options = Options()
         
-        # Always use headless in server environments
-        chrome_options.add_argument('--headless=new')
+        # Use headless mode on Linux servers, visible on Mac/Windows for better compatibility
+        if self.headless or sys.platform.startswith('linux'):
+            chrome_options.add_argument('--headless=new')
+        
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-gpu')
@@ -58,8 +61,11 @@ class OrangeCreditCardRecharge:
         chrome_options.add_argument('--window-size=1920,1080')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         
-        # Use Chromium if available
-        chrome_options.binary_location = '/usr/bin/chromium'
+        # Use Chromium if available (Linux only)
+        import sys
+        if sys.platform.startswith('linux'):
+            chrome_options.binary_location = '/usr/bin/chromium'
+        # On Mac, let Selenium find Chrome automatically
         
         # Anti-detection measures
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
