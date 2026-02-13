@@ -47,5 +47,15 @@ htmlcov/
 
 # Credentials (if any)
 .env
+.env.local
+.env.production
 config.json
 credentials.json
+
+# BUT keep .env.example
+!.env.example
+
+# Temporary test files
+/tmp/
+*.mp3
+*.wav
