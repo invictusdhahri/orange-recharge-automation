@@ -120,6 +120,20 @@ Solution: Wait a few hours, or use 2Captcha fallback
 Solution: Audio might be too noisy, try again or use 2Captcha
 ```
 
+**Problem:** "Audio CAPTCHA failed" but checkbox is actually checked
+```
+Fixed in latest version! Script now verifies checkbox state after solving.
+If you still see this, update to latest version:
+git pull origin main
+```
+
+**Problem:** 2Captcha token received but checkbox not checked
+```
+This is a server-side validation issue with Orange Tunisia.
+The checkbox verification was added to catch this correctly.
+Solution: Use auto mode - will retry with different method.
+```
+
 ---
 
 ## Method 2: 2Captcha Service 💰

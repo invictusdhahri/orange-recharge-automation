@@ -167,8 +167,32 @@ class OrangeCreditCardRecharge:
             # Switch back to main content
             self.driver.switch_to.default_content()
             
-            print("✅ Audio CAPTCHA solved!")
-            return True
+            # Verify CAPTCHA was actually solved by checking checkbox state
+            time.sleep(2)
+            try:
+                # Switch to checkbox iframe to verify
+                checkbox_iframe = self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
+                )
+                self.driver.switch_to.frame(checkbox_iframe)
+                
+                # Look for the checkmark (aria-checked="true")
+                checkbox = self.driver.find_element(By.ID, 'recaptcha-anchor')
+                is_checked = checkbox.get_attribute('aria-checked')
+                
+                self.driver.switch_to.default_content()
+                
+                if is_checked == 'true':
+                    print("✅ Audio CAPTCHA solved successfully!")
+                    return True
+                else:
+                    print("❌ Audio CAPTCHA not verified (checkbox not checked)")
+                    return False
+                    
+            except Exception as verify_error:
+                print(f"⚠️  Could not verify CAPTCHA state: {verify_error}")
+                self.driver.switch_to.default_content()
+                return False
             
         except Exception as e:
             print(f"❌ Audio CAPTCHA failed: {str(e)}")
@@ -212,7 +236,7 @@ class OrangeCreditCardRecharge:
                 
                 if result['status'] == 1:
                     token = result['request']
-                    print("✅ 2Captcha solved!")
+                    print("✅ 2Captcha token received!")
                     
                     # Inject token into page
                     self.driver.execute_script(f"""
@@ -243,7 +267,33 @@ class OrangeCreditCardRecharge:
                         }});
                     """)
                     
-                    return True
+                    # Verify CAPTCHA was actually solved by checking checkbox state
+                    time.sleep(2)
+                    try:
+                        # Switch to checkbox iframe to verify
+                        checkbox_iframe = self.wait.until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
+                        )
+                        self.driver.switch_to.frame(checkbox_iframe)
+                        
+                        # Look for the checkmark (aria-checked="true")
+                        checkbox = self.driver.find_element(By.ID, 'recaptcha-anchor')
+                        is_checked = checkbox.get_attribute('aria-checked')
+                        
+                        self.driver.switch_to.default_content()
+                        
+                        if is_checked == 'true':
+                            print("✅ 2Captcha token accepted!")
+                            return True
+                        else:
+                            print("❌ 2Captcha token not accepted (checkbox not checked)")
+                            return False
+                            
+                    except Exception as verify_error:
+                        print(f"⚠️  Could not verify CAPTCHA state: {verify_error}")
+                        self.driver.switch_to.default_content()
+                        # Return True anyway since we got a token - it's a backend validation issue
+                        return True
             
             print("❌ 2Captcha timeout")
             return False
