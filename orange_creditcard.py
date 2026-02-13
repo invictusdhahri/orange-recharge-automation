@@ -220,6 +220,30 @@ class OrangeCreditCardRecharge:
                 return False
             print(f"   💵 Account balance: ${balance:.2f}")
             
+            # Click the checkbox first to initialize reCAPTCHA
+            print("   🖱️  Clicking reCAPTCHA checkbox to initialize...")
+            try:
+                # Switch to reCAPTCHA iframe
+                iframe = self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"][src*="anchor"]'))
+                )
+                self.driver.switch_to.frame(iframe)
+                
+                # Click the checkbox
+                checkbox = self.wait.until(
+                    EC.element_to_be_clickable((By.CLASS_NAME, 'recaptcha-checkbox-border'))
+                )
+                self.driver.execute_script("arguments[0].click();", checkbox)
+                time.sleep(2)  # Wait for challenge to appear (if needed)
+                
+                # Switch back to main content
+                self.driver.switch_to.default_content()
+                print("   ✅ Checkbox clicked, reCAPTCHA initialized")
+            except Exception as click_error:
+                print(f"   ⚠️  Could not click checkbox: {click_error}")
+                print("   Continuing with direct token injection...")
+                self.driver.switch_to.default_content()
+            
             # Submit CAPTCHA to 2Captcha
             url = self.driver.current_url
             submit_url = f"http://2captcha.com/in.php?key={self.twocaptcha_api_key}&method=userrecaptcha&googlekey={sitekey}&pageurl={url}&json=1"
@@ -461,7 +485,17 @@ class OrangeCreditCardRecharge:
             print("✅ Clicking Valider...")
             valider_button = self.driver.find_element(By.XPATH, '//button[contains(text(), "Valider")]')
             self.driver.execute_script("arguments[0].click();", valider_button)
-            time.sleep(2)
+            time.sleep(3)  # Wait for reCAPTCHA to load
+            
+            # Wait for reCAPTCHA iframe to be visible
+            print("⏳ Waiting for reCAPTCHA to load...")
+            try:
+                self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'iframe[src*="recaptcha"]'))
+                )
+                print("✅ reCAPTCHA loaded!")
+            except:
+                print("⚠️  reCAPTCHA iframe not found, continuing anyway...")
             
             # Solve reCAPTCHA
             print("🔓 Solving reCAPTCHA...")
