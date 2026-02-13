@@ -213,27 +213,60 @@ class OrangeCreditCardRecharge:
         try:
             print("💰 Using 2Captcha service...")
             
+            # Quick balance check to validate API key
+            success, balance, message = self.check_2captcha_balance()
+            if not success:
+                print(f"❌ 2Captcha API key validation failed: {message}")
+                return False
+            print(f"   💵 Account balance: ${balance:.2f}")
+            
             # Submit CAPTCHA to 2Captcha
             url = self.driver.current_url
             submit_url = f"http://2captcha.com/in.php?key={self.twocaptcha_api_key}&method=userrecaptcha&googlekey={sitekey}&pageurl={url}&json=1"
             
-            response = requests.get(submit_url)
+            print(f"   📤 Submitting to 2Captcha API...")
+            response = requests.get(submit_url, timeout=10)
             result = response.json()
             
             if result['status'] != 1:
-                print(f"❌ 2Captcha error: {result}")
+                error_msg = result.get('request', 'Unknown error')
+                print(f"❌ 2Captcha submission failed: {error_msg}")
+                print(f"   Full response: {result}")
+                
+                # Common errors with helpful messages
+                if error_msg == 'ERROR_WRONG_USER_KEY':
+                    print("   💡 Check your API key - it appears to be invalid")
+                elif error_msg == 'ERROR_ZERO_BALANCE':
+                    print("   💡 Your 2Captcha balance is $0 - add funds at https://2captcha.com")
+                elif error_msg == 'ERROR_NO_SLOT_AVAILABLE':
+                    print("   💡 2Captcha is busy - try again in a few minutes")
+                
                 return False
             
             captcha_id = result['request']
             print(f"⏳ Waiting for 2Captcha to solve (ID: {captcha_id})...")
             
             # Poll for result (usually takes 10-30 seconds)
-            for _ in range(60):
+            for attempt in range(60):
                 time.sleep(2)
                 result_url = f"http://2captcha.com/res.php?key={self.twocaptcha_api_key}&action=get&id={captcha_id}&json=1"
-                response = requests.get(result_url)
-                result = response.json()
                 
+                try:
+                    response = requests.get(result_url, timeout=10)
+                    result = response.json()
+                except requests.exceptions.Timeout:
+                    print(f"   ⚠️  Request timeout, retrying...")
+                    continue
+                except Exception as poll_error:
+                    print(f"   ⚠️  Polling error: {poll_error}")
+                    continue
+                
+                # Print progress every 10 seconds
+                if attempt > 0 and attempt % 5 == 0:
+                    elapsed = attempt * 2
+                    print(f"   ⏱️  Still waiting... ({elapsed}s elapsed)")
+                
+                # Check if solved
                 if result['status'] == 1:
                     token = result['request']
                     print("✅ 2Captcha token received!")
@@ -294,13 +327,49 @@ class OrangeCreditCardRecharge:
                         self.driver.switch_to.default_content()
                         # Return True anyway since we got a token - it's a backend validation issue
                         return True
+                
+                # Check for errors (status == 0)
+                elif result['status'] == 0:
+                    error_msg = result.get('request', 'Unknown error')
+                    # CAPCHA_NOT_READY is normal, keep waiting
+                    if error_msg == 'CAPCHA_NOT_READY':
+                        continue
+                    # Other errors are actual failures
+                    else:
+                        print(f"❌ 2Captcha error: {error_msg}")
+                        print(f"   Full response: {result}")
+                        return False
             
-            print("❌ 2Captcha timeout")
+            # If we get here, we timed out
+            print("❌ 2Captcha timeout after 120 seconds")
+            print(f"   Last response: {result}")
             return False
             
         except Exception as e:
             print(f"❌ 2Captcha error: {str(e)}")
             return False
+    
+    def check_2captcha_balance(self):
+        """
+        Check 2Captcha account balance
+        Returns: (success: bool, balance: float, message: str)
+        """
+        if not self.twocaptcha_api_key:
+            return (False, 0.0, "No API key provided")
+        
+        try:
+            url = f"http://2captcha.com/res.php?key={self.twocaptcha_api_key}&action=getbalance&json=1"
+            response = requests.get(url, timeout=10)
+            result = response.json()
+            
+            if result['status'] == 1:
+                balance = float(result['request'])
+                return (True, balance, f"Balance: ${balance:.2f}")
+            else:
+                error = result.get('request', 'Unknown error')
+                return (False, 0.0, f"Error: {error}")
+        except Exception as e:
+            return (False, 0.0, f"Exception: {str(e)}")
     
     def get_recaptcha_sitekey(self):
         """Extract reCAPTCHA site key from page"""
@@ -555,10 +624,42 @@ def main():
     """CLI entry point"""
     import sys
     
+    # Check for special commands
+    if len(sys.argv) >= 2 and sys.argv[1] == 'check-balance':
+        # Extract 2captcha key from args
+        twocaptcha_key = None
+        for arg in sys.argv:
+            if arg.startswith('--2captcha-key='):
+                twocaptcha_key = arg.split('=')[1]
+        
+        if not twocaptcha_key:
+            print("Usage: python orange_creditcard.py check-balance --2captcha-key=YOUR_KEY")
+            sys.exit(1)
+        
+        recharger = OrangeCreditCardRecharge(twocaptcha_api_key=twocaptcha_key)
+        success, balance, message = recharger.check_2captcha_balance()
+        
+        print("\n" + "="*60)
+        print("2CAPTCHA ACCOUNT STATUS")
+        print("="*60)
+        if success:
+            print(f"✅ API Key Valid")
+            print(f"💵 Balance: ${balance:.2f}")
+            if balance < 0.50:
+                print(f"⚠️  Low balance! Add funds at https://2captcha.com")
+        else:
+            print(f"❌ {message}")
+        print("="*60)
+        sys.exit(0)
+    
     if len(sys.argv) < 3:
         print("Usage: python orange_creditcard.py <phone_number> <amount> [notification_number] [--2captcha-key=XXX]")
-        print("Example: python orange_creditcard.py 53028939 20")
-        print("Example: python orange_creditcard.py 53028939 50 27865121 --2captcha-key=your_api_key")
+        print("       python orange_creditcard.py check-balance --2captcha-key=XXX")
+        print()
+        print("Examples:")
+        print("  python orange_creditcard.py 53028939 20")
+        print("  python orange_creditcard.py 53028939 50 27865121 --2captcha-key=your_api_key")
+        print("  python orange_creditcard.py check-balance --2captcha-key=your_api_key")
         sys.exit(1)
     
     phone_number = sys.argv[1]
