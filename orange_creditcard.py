@@ -46,11 +46,20 @@ class OrangeCreditCardRecharge:
     def _setup_driver(self):
         """Setup Chrome driver with options"""
         chrome_options = Options()
-        if self.headless:
-            chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        
+        # Always use headless in server environments
+        chrome_options.add_argument('--headless=new')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-software-rasterizer')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--disable-setuid-sandbox')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        
+        # Use Chromium if available
+        chrome_options.binary_location = '/usr/bin/chromium'
         
         # Anti-detection measures
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -194,11 +203,30 @@ class OrangeCreditCardRecharge:
                     # Inject token into page
                     self.driver.execute_script(f"""
                         document.getElementById('g-recaptcha-response').innerHTML = '{token}';
+                        document.getElementById('g-recaptcha-response').value = '{token}';
+                        
+                        // Try multiple callback methods
                         if (typeof ___grecaptcha_cfg !== 'undefined') {{
-                            Object.keys(___grecaptcha_cfg.clients).forEach(key => {{
-                                ___grecaptcha_cfg.clients[key].callback('{token}');
-                            }});
+                            for (var id in ___grecaptcha_cfg.clients) {{
+                                var client = ___grecaptcha_cfg.clients[id];
+                                if (client && typeof client.callback === 'function') {{
+                                    try {{
+                                        client.callback('{token}');
+                                    }} catch (e) {{ }}
+                                }}
+                            }}
                         }}
+                        
+                        // Alternative: trigger change event
+                        var event = new Event('change');
+                        document.getElementById('g-recaptcha-response').dispatchEvent(event);
+                        
+                        // Remove disabled attribute from button
+                        var buttons = document.querySelectorAll('button[disabled]');
+                        buttons.forEach(function(btn) {{
+                            btn.removeAttribute('disabled');
+                            btn.disabled = false;
+                        }});
                     """)
                     
                     return True
@@ -326,8 +354,21 @@ class OrangeCreditCardRecharge:
             
             # Wait for Pay button to become enabled
             print("⏳ Waiting for Pay button...")
+            time.sleep(3)  # Give page time to process token
+            
+            # Force enable the button
+            self.driver.execute_script("""
+                var buttons = document.querySelectorAll('button');
+                buttons.forEach(function(btn) {
+                    if (btn.textContent.includes('Payer')) {
+                        btn.removeAttribute('disabled');
+                        btn.disabled = false;
+                    }
+                });
+            """)
+            
             pay_button = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, '//button[contains(text(), "Payer")]'))
+                EC.presence_of_element_located((By.XPATH, '//button[contains(text(), "Payer")]'))
             )
             
             # Click Pay
